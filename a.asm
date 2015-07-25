@@ -1,10 +1,11 @@
 locals
 data	segment
-	fileName	db	"test2.txt",0
+	fileName	db	"test5.txt",0
 	filePointer	dw	?
 	buffer		db	0FFh dup(?)
 	uErrorMsg	db	"UNKNOWN ERROR", 10, 13, "$"
 	errorMsg2	db	"FILE NOT FOUND", 10, 13, "$"
+	errorMsg3	db	"PATH NOT FOUND", 10, 13, "$"
 	errorMsg5	db	"TOO MANY OPEN FILES", 10, 13, "$"
 	errorMsg12	db	"INVALID PERMISSIONS", 10, 13, "$"
 	pressAnyKey	db	"Press any key to continue...", 10, 13, "$"
@@ -45,6 +46,15 @@ CreateFile	proc
 			ret
 CreateFile	endp
 
+SetMessage	proc
+			mov dx, offset message
+			mov bx, dx
+			mov [byte ptr bx], 21
+			mov ah, 0Ah
+			int 21h
+			ret
+SetMessage	endp
+
 OpenFile	proc
 			mov dx, offset fileName
 			mov ah, 3Dh
@@ -55,6 +65,8 @@ OpenFile	proc
 			ret
 		OpenError:	cmp ax, 2
 					jz AX2
+					cmp ax, 3
+					jz AX3
 					cmp ax, 5
 					jz AX5
 					cmp ax, 12
@@ -64,6 +76,10 @@ OpenFile	proc
 					int 21h
 					jmp Exit
 		AX2:	mov dx, offset errorMsg2
+				mov ah, 9
+				int 21h
+				jmp Exit
+		AX3:	mov dx, offset errorMsg3
 				mov ah, 9
 				int 21h
 				jmp Exit
@@ -113,11 +129,7 @@ CloseFile	endp
 			call ClearScreen
 			call CreateFile
 			call OpenFile
-			mov dx, offset message
-			mov bx, dx
-			mov [byte ptr bx], 21
-			mov ah, 0Ah
-			int 21h
+			call SetMessage
 			call WriteToFile
 			call CloseFile
 	Stop:	mov ah, 4Ch
