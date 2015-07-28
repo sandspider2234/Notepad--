@@ -46,15 +46,6 @@ CreateFile	proc
 			ret
 CreateFile	endp
 
-SetMessage	proc
-			mov dx, offset message
-			mov bx, dx
-			mov [byte ptr bx], 0FDh
-			mov ah, 0Ah
-			int 21h
-			ret
-SetMessage	endp
-
 SetFileName	proc
 			mov dx, offset fileName
 			mov bx, dx
@@ -62,17 +53,17 @@ SetFileName	proc
 			mov ah, 0Ah
 			int 21h
 			mov si, 2
-			; Shift moves each letter after the first two ones two bytes to the left.
-			; This is because the first two bytes are taken by information that is
-			; not needed and disturbs reading the file name.
-	Shift:	mov al, fileName[si]
-			sub si, 2
-			mov fileName[si], al
-			add si, 3
-			cmp si, 10
-			jc Shift
+	; Shift moves each letter after the first two ones two bytes to the left.
+	; This is because the first two bytes are taken by information that is
+	; not needed and disturbs reading the file name.
+	@@Shift:	mov al, fileName[si]
+				sub si, 2
+				mov fileName[si], al
+				add si, 3
+				cmp si, 11
+				jc @@Shift
 			mov si, 0
-			; Find removes the "enter" ascii code in the end of the string.
+	; Find removes the "enter" ascii code in the end of the string.
 	Find:	mov al, fileName[si]
 			inc si
 			cmp al, 0Dh
@@ -81,6 +72,22 @@ SetFileName	proc
 			mov fileName[si], 0
 			ret
 SetFileName	endp
+
+SetMessage	proc
+			mov dx, offset message
+			mov bx, dx
+			mov [byte ptr bx], 0FDh
+			mov ah, 0Ah
+			int 21h
+			mov si, 2
+	@@Shift:	mov al, message[si]
+				sub si, 2
+				mov message[si], al
+				add si, 3
+				cmp si, 0FDh
+				jc @@Shift
+			ret
+SetMessage	endp
 
 OpenFile	proc
 			mov dx, offset fileName
