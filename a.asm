@@ -1,6 +1,6 @@
 locals
 data	segment
-	fileName	db	13	 dup(?),0
+	fileName	db	13		dup(?)
 	filePointer	dw	?
 	buffer		dw	0FFh	dup(?)
 	uErrorMsg	db	"UNKNOWN ERROR", 10, 13, "$"
@@ -62,6 +62,9 @@ SetFileName	proc
 			mov ah, 0Ah
 			int 21h
 			mov si, 2
+			; Shift moves each letter after the first two ones two bytes to the left.
+			; This is because the first two bytes are taken by information that is
+			; not needed and disturbs reading the file name.
 	Shift:	mov al, fileName[si]
 			sub si, 2
 			mov fileName[si], al
@@ -69,6 +72,7 @@ SetFileName	proc
 			cmp si, 10
 			jc Shift
 			mov si, 0
+			; Find removes the "enter" ascii code in the end of the string.
 	Find:	mov al, fileName[si]
 			inc si
 			cmp al, 0Dh
@@ -76,7 +80,7 @@ SetFileName	proc
 			dec si
 			mov fileName[si], 0
 			ret
-SetFileName	endp			
+SetFileName	endp
 
 OpenFile	proc
 			mov dx, offset fileName
