@@ -1,6 +1,6 @@
 locals
 data	segment
-	fileName	db	13		dup(?)
+	fileName	db	23		dup(?)
 	filePointer	dw	?
 	buffer		dw	0FFh	dup(?)
 	uErrorMsg	db	"UNKNOWN ERROR", 10, 13, "$"
@@ -49,7 +49,7 @@ CreateFile	endp
 SetFileName	proc
 			mov dx, offset fileName
 			mov bx, dx
-			mov [byte ptr bx], 11
+			mov [byte ptr bx], 21
 			mov ah, 0Ah
 			int 21h
 			mov si, 2
@@ -60,7 +60,7 @@ SetFileName	proc
 				sub si, 2
 				mov fileName[si], al
 				add si, 3
-				cmp si, 11
+				cmp si, 21
 				jc @@Shift
 			mov si, 0
 	; Find removes the "enter" ascii code in the end of the string.
