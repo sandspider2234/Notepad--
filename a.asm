@@ -9,6 +9,9 @@ data	segment
 	errorMsg5	db	"TOO MANY OPEN FILES", 10, 13, "$"
 	errorMsg12	db	"INVALID PERMISSIONS", 10, 13, "$"
 	pressAnyKey	db	"Press any key to continue...", 10, 13, "$"
+    menu        db  " File  Edit  Help", 63 dup(20h)
+    menuColor   db  77h, 74h, 70h, 70h, 70h, 77h, 77h, 74h, 70h, 70h, 70h, 77h, 77h, 74h, 70h, 70h, 70h, 63 dup(77h)
+	MENUC_LEN	=	$-menuColor
 	message		db	0FFh	dup(?)
 	MESSAGE_LEN	=	$-message
 data	ends
@@ -37,6 +40,32 @@ ClearScreen	proc
 			ret
 ClearScreen endp
 
+PrintMenuBar	proc
+			mov dh, 0
+			mov dl, 0
+			mov si, 0
+			mov bh, 0
+			mov cx, 1
+	@@Print:
+			mov ah, 9
+			mov al, menu[si]
+			mov bl, menuColor[si]
+			int 10h
+			mov ah, 2
+			inc dl
+			int 10h
+			inc si
+			cmp si, MENUC_LEN
+			jc @@Print
+			mov ah, 2
+			mov dl, 10
+			int 21h
+			int 21h
+			mov dl, 13
+			int 21h
+			ret
+PrintMenuBar	endp
+
 CreateFile	proc
 			mov dx, offset fileName
 			mov cx, 0
@@ -47,6 +76,9 @@ CreateFile	proc
 CreateFile	endp
 
 SetFileName	proc
+			mov dl, 10
+			mov ah, 2
+			int 21h
 			mov dx, offset fileName
 			mov bx, dx
 			mov [byte ptr bx], 21
@@ -161,10 +193,12 @@ CloseFile	endp
 	Start: 	mov ax, data
 			mov ds, ax
 			call ClearScreen
+			call PrintMenuBar
 			call SetFileName
 			call CreateFile
 			call OpenFile
 			call ClearScreen
+			call PrintMenuBar
 			call SetMessage
 			call WriteToFile
 			call CloseFile
