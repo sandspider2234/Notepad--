@@ -88,12 +88,13 @@ SetFileName	proc
 	; Shift moves each letter after the first two ones two bytes to the left.
 	; This is because the first two bytes are taken by information that is
 	; not needed and disturbs reading the file name.
-	@@Shift:	mov al, fileName[si]
-				sub si, 2
-				mov fileName[si], al
-				add si, 3
-				cmp si, 21
-				jc @@Shift
+	@@Shift:	
+			mov al, fileName[si]
+			sub si, 2
+			mov fileName[si], al
+			add si, 3
+			cmp si, 21
+			jc @@Shift
 			mov si, 0
 	; Find removes the "enter" ascii code in the end of the string.
 	Find:	mov al, fileName[si]
@@ -112,12 +113,13 @@ SetMessage	proc
 			mov ah, 0Ah
 			int 21h
 			mov si, 2
-	@@Shift:	mov al, message[si]
-				sub si, 2
-				mov message[si], al
-				add si, 3
-				cmp si, 0FDh
-				jc @@Shift
+	@@Shift:	
+			mov al, message[si]
+			sub si, 2
+			mov message[si], al
+			add si, 3
+			cmp si, 0FDh
+			jc @@Shift
 			ret
 SetMessage	endp
 
@@ -129,40 +131,46 @@ OpenFile	proc
 			jc OpenError
 			mov filePointer, ax
 			ret
-		OpenError:	cmp ax, 2
-					jz AX2
-					cmp ax, 3
-					jz AX3
-					cmp ax, 5
-					jz AX5
-					cmp ax, 12
-					jz AX12
-					mov dx, offset uErrorMsg
-					mov ah, 9
-					int 21h
-					jmp Exit
-		AX2:	mov dx, offset errorMsg2
-				mov ah, 9
-				int 21h
-				jmp Exit
-		AX3:	mov dx, offset errorMsg3
-				mov ah, 9
-				int 21h
-				jmp Exit
-		AX5:	mov dx, offset errorMsg5
-				mov ah, 9
-				int 21h
-				jmp Exit
-		AX12:	mov dx, offset errorMsg12
-				mov ah, 9
-				int 21h
-				jmp Exit
-		Exit:	mov dx, offset pressAnyKey
-				int 21h
-				mov ah, 7
-				int 21h
-				mov ah, 4Ch
-				int 21h
+		OpenError:	
+			cmp ax, 2
+			jz AX2
+			cmp ax, 3
+			jz AX3
+			cmp ax, 5
+			jz AX5
+			cmp ax, 12
+			jz AX12
+			mov dx, offset uErrorMsg
+			mov ah, 9
+			int 21h
+			jmp Exit
+		AX2:	
+			mov dx, offset errorMsg2
+			mov ah, 9
+			int 21h
+			jmp Exit
+		AX3:
+			mov dx, offset errorMsg3
+			mov ah, 9
+			int 21h
+			jmp Exit
+		AX5:
+			mov dx, offset errorMsg5
+			mov ah, 9
+			int 21h
+			jmp Exit
+		AX12:
+			mov dx, offset errorMsg12
+			mov ah, 9
+			int 21h
+			jmp Exit
+		Exit:
+			mov dx, offset pressAnyKey
+			int 21h
+			mov ah, 7
+			int 21h
+			mov ah, 4Ch
+			int 21h
 OpenFile	endp
 
 ReadFile	proc
