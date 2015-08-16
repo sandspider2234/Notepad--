@@ -2,19 +2,18 @@ from asmlib import consts
 from argparse import ArgumentParser
 
 
-def create_reg_list(procString):
+def create_reg_list(proc_string):
     new_list = []
     for register in consts.REGISTERS_LIST:
-        if register in procString:
+        if register in proc_string:
             new_list.append(register)
 
     for register in consts.SMALL_REGISTERS_LIST:
-        if register in procString:
-            if register[:1] + "x" not in new_list:
+        if register in proc_string:
+            large_register = register[:1] + "x"
+            if large_register not in new_list:
                 new_list.remove(register)
-                register = register[:1]
-                register += "x"
-                new_list.append(register)
+                new_list.append(large_register)
             else:
                 new_list.remove(register)
 
