@@ -1,42 +1,62 @@
-def CreateRegList(procString, regList, smallRegList, newList):
-    for register in regList:
-        if register in procString:
-            newList.append(register)
-    
-    for register in smallRegList:
-        if register in procString and register[:1] + "x" not in newList:
-            register = register[:1]
-            register = register + "x"
-            newList.append(register)
-        if register in procString and register[:1] + "x" in newList:
-            newList.remove(register)
-            
-    return newList
+from asmlib import consts
+from argparse import ArgumentParser
+
+
+def create_reg_list(proc_string):
+    new_list = []
+    for register in consts.REGISTERS_LIST:
+        if register in proc_string:
+            new_list.append(register)
+
+    for register in consts.SMALL_REGISTERS_LIST:
+        if register in proc_string:
+            large_register = register[:1] + "x"
+            if large_register not in new_list:
+                new_list.remove(register)
+                new_list.append(large_register)
+            else:
+                new_list.remove(register)
+
+    new_list.sort()
+    return new_list
+
 
 def main():
-    registersList = ["ax", "ah", "al", "bx", "bh", "bl", "cx", "ch", "cl", "dx", "dh", "dl"]
-    smallRegistersList = ["ah", "al", "bh", "bl", "ch", "cl", "dh", "dl"]
-    currentRegistersList = []
     d = {}
-    fileString = open(r"C:\Users\Barak\Documents\TASM\BIN\Notepad--\a.asm", "r").read()
-    beginIndex = fileString.index("proc")
-    finalIndex = fileString.rindex("endp")
-    procSegSlice = fileString[beginIndex:finalIndex+4]
-    beginningOfProc = procSegSlice.index("proc")
-    endingOfProc = procSegSlice.index("endp")
-    while endingOfProc <= finalIndex:
-        currentProc = procSegSlice[beginningOfProc:endingOfProc]
-        currentRegistersList = CreateRegList(currentProc, registersList, smallRegistersList, currentRegistersList)
-        procName = currentProc.rsplit(None, 1)[-1]
-        d[procName] = currentRegistersList
-        currentRegistersList.clear()
-        procSegSlice = procSegSlice[endingOfProc+4:finalIndex]
-        beginningOfProc = procSegSlice.find("proc")
-        endingOfProc = procSegSlice.find("endp")
-        if endingOfProc == -1 or beginningOfProc == -1:
+    parser = ArgumentParser()
+    parser.add_argument("-filename", default="source.asm",
+                        help="File to be enumerated. If file is in current folder, filename only is OK. "
+                             "Else, full path is required.", metavar="path")
+    file_string = open(parser.parse_args().filename, "r").read()
+    # CR Shay   Extract a function which gets the file's contents (AKA file_string) and returns a list of all the procs
+    #           like currentProc.
+    #           Then you could write something like this:
+    """
+    for proc in get_all_procs(file_content):
+        do_something_with_proc(proc)
+    """
+    begin_index = file_string.index("proc")
+    final_index = file_string.rindex("endp")
+    proc_seg_slice = file_string[begin_index:final_index + 4]
+    beginning_of_proc = proc_seg_slice.index("proc")
+    ending_of_proc = proc_seg_slice.index("endp")
+    while ending_of_proc <= final_index:
+        current_proc = proc_seg_slice[beginning_of_proc:ending_of_proc]
+        current_registers_list = create_reg_list(current_proc)
+        proc_name = current_proc.rsplit(None, 1)[-1]
+        d[proc_name] = current_registers_list[:]
+        # CR Shay   The bug is caused by the code's flawed design, and is finally exposed when this line runs.
+        #           Figuring out what's wrong and how to change the code to fix it is left to you as an assignment.
+        #           You didn't expect it to be that easy, now did you? :)
+        current_registers_list.clear()
+        proc_seg_slice = proc_seg_slice[ending_of_proc + 4:final_index]
+        beginning_of_proc = proc_seg_slice.find("proc")
+        ending_of_proc = proc_seg_slice.find("endp")
+        if ending_of_proc == -1 or beginning_of_proc == -1:
             break
-        
+
     print(d)
-    
+
+
 if __name__ == "__main__":
     main()

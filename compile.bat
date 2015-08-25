@@ -1,7 +1,7 @@
 IF [%1]==[] GOTO NoParameter
 IF NOT [%1]==[] GOTO Parameter
 :NoParameter
-STRINGS Name= ASK ASM file name (exclude .ASM): 
+STRINGS Name= ASK ASM file name (exclude .ASM):  
 IF [%Name%]==[] ECHO Null input
 IF [%Name%]==[] GOTO End
 TASM	/ZI	%Name%
