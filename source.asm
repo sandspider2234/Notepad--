@@ -1,5 +1,6 @@
 locals
 data	segment
+	retAddress	db	0
 	fileName	db	23		dup(?)
 	filePointer	dw	?
 	buffer		dw	0FFh	dup(?)
@@ -9,11 +10,12 @@ data	segment
 	errorMsg5	db	"TOO MANY OPEN FILES", 10, 13, "$"
 	errorMsg12	db	"INVALID PERMISSIONS", 10, 13, "$"
 	pressAnyKey	db	"Press any key to continue...", 10, 13, "$"
-	askForName	db	"Filename: ", 10, 13, "$"
+	askForName	db	10, 10, 13, "Filename: ", "$"
     menu        db  " File  Edit  Help", 59 dup(20h), "F10 "
     menuColor   db  77h, 74h, 70h, 70h, 70h, 77h, 77h, 74h, 70h, 70h, 70h, 77h, 77h, 74h, 70h, 70h, 70h, 59 dup(77h), 3 dup(74h), 77h
 	MENU_LEN	=	$-menuColor
 	fileHighC	db	37h, 34h, 30h, 30h, 30h, 37h, 77h, 74h, 70h, 70h, 70h, 77h, 77h, 74h, 70h, 70h, 70h, 59 dup(77h), 3 dup(74h), 77h
+	editHighC	db	77h, 74h, 70h, 70h, 70h, 77h, 37h, 34h, 30h, 30h, 30h, 37h, 77h, 74h, 70h, 70h, 70h, 59 dup(77h), 3 dup(74h), 77h
 	fileMenu	db	" New (Ctrl+N)  Open (Ctrl+O)  Save (Ctrl+S)", 37 dup(20h)
 	fileMenuC	db	6 dup(70h), 6 dup(74h), 9 dup(70h), 6 dup(74h), 9 dup (70h), 6 dup(74h), 38 dup(70h)
 	message		db	0FFh	dup(?)
@@ -24,7 +26,7 @@ data	segment
 data	ends
 
 stac	segment stack
-		    dw 100h dup(?)
+		    dw 200h dup(?)
 stac	ends
 
 code	segment
@@ -47,8 +49,13 @@ ClearScreen	proc
 			ret
 ClearScreen endp
 
-PrintMainMenu	proc
-			mov dh, 0
+TextParamenter		equ	[bp+8]
+MenuColorParameter	equ	[bp+6]
+RowToPrint			equ	[bp+4]
+PrintBar	proc
+			push bp
+			mov bp, sp
+			mov dh, RowToPrint
 			mov dl, 0
 			mov bh, 0
 			mov ah, 2
@@ -57,8 +64,8 @@ PrintMainMenu	proc
 			mov cx, 1
 	@@Print:
 			mov ah, 9
-			mov al, menu[si]
-			mov bl, menuColor[si]
+			mov al, [TextParamenter+si]
+			mov bl, [MenuColorParameter+si]
 			int 10h
 			mov ah, 2
 			inc dl
@@ -67,57 +74,13 @@ PrintMainMenu	proc
 			cmp si, MENU_LEN
 			jc @@Print
 			mov ah, 2
-			mov dl, 10
-			int 21h
-			int 21h
-			mov dl, 13
-			int 21h
-			ret
-PrintMainMenu	endp
-
-PrintMainFile	proc
-				mov dh, 0
-				mov dl, 0
-				mov bh, 0
-				mov ah, 2
-				int 10h
-				mov si, 0
-				mov cx, 1
-		@@Print:
-				mov ah, 9
-				mov al, menu[si]
-				mov bl, fileHighC[si]
-				int 10h
-				mov ah, 2
-				inc dl
-				int 10h
-				inc si
-				cmp si, MENU_LEN
-				jc @@Print
-				ret
-PrintMainFile	endp
-
-PrintSecondBar	proc
-				mov dh, 1
-				mov dl, 0
-				mov bh, 0
-				mov ah, 2
-				int 10h
-				mov si, 0
-				mov cx, 1
-		@@Print:
-				mov ah, 9
-				mov al, fileMenu[si]
-				mov bl, fileMenuC[si]
-				int 10h
-				mov ah, 2
-				inc dl
-				int 10h
-				inc si
-				cmp si, MENU_LEN
-				jc @@Print
-				ret
-PrintSecondBar	endp
+			mov bh, 0
+			mov dl, 0
+			mov dh, 2
+			int 10h
+			pop bp
+			ret 6
+PrintBar	endp
 
 CreateFile	proc
 			mov dx, offset fileName
@@ -260,14 +223,14 @@ Input		proc
 			jz @@EditMenu
 			cmp al, 23h ; alt+h
 			jz @@HelpMenu
-			cmp al, 50h ; down
-			jz @@MoveDown
-			cmp al, 4Bh ; left
-			jz @@MoveLeft
-			cmp al, 4Dh ; right
-			jz @@MoveRight
-			cmp al, 48h ; up
-			jz @@MoveUp
+			; cmp al, 50h ; down
+			; jz @@MoveDown
+			; cmp al, 4Bh ; left
+			; jz @@MoveLeft
+			; cmp al, 4Dh ; right
+			; jz @@MoveRight
+			; cmp al, 48h ; up
+			; jz @@MoveUp
 			mov ah, 2
 			mov bh, 0
 			mov dl, cursorX
@@ -275,13 +238,22 @@ Input		proc
 			int 10h
 			jmp @@GetKey
 	@@FileMenu:
-			call PrintMainFile
-			call PrintSecondBar
+			push offset menu
+			push offset fileHighC
+			push 0
+			call PrintBar
+			push offset fileMenu
+			push offset fileMenuC
+			push 1
+			call PrintBar
 			mov ah, 2
 			mov bh, 0
 			mov dl, cursorX
 			mov dh, cursorY
 			int 10h
+			mov dx, offset askForName
+			mov ah, 9
+			int 21h
 			call SetFileName
 			call CreateFile
 			call WriteToFile
@@ -299,7 +271,10 @@ Input		endp
 	Start: 	mov ax, data
 			mov ds, ax
 			call ClearScreen
-			call PrintMainMenu
+			push offset menu
+			push offset menuColor
+			push 0
+			call PrintBar
 			call Input
 			call CloseFile
 	Stop:	mov ah, 4Ch
