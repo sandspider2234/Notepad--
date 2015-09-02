@@ -26,7 +26,11 @@ data	segment
 data	ends
 
 stac	segment stack
+<<<<<<< testing
+		    dw 200h dup(?)
+=======
 		    dw 300h dup(?)
+>>>>>>> local
 stac	ends
 
 code	segment
@@ -49,13 +53,18 @@ ClearScreen	proc
 			ret
 ClearScreen endp
 
-TextParameter		equ	[bp+8]
+<<<<<<< testing
+TextParamenter		equ	[bp+8]
 MenuColorParameter	equ	[bp+6]
 RowToPrint			equ	[bp+4]
 PrintBar	proc
 			push bp
 			mov bp, sp
 			mov dh, RowToPrint
+=======
+TextParameter		equ	[bp+8]
+			mov dh, 0
+>>>>>>> local
 			mov dl, 0
 			mov bh, 0
 			mov ah, 2
@@ -64,11 +73,16 @@ PrintBar	proc
 			mov cx, 1
 	@@Print:
 			mov ah, 9
+<<<<<<< testing
+			mov al, [TextParamenter+si]
+			mov bl, [MenuColorParameter+si]
+=======
 			mov bx, TextParameter
 			mov al, [bx+si]
 			mov bx, MenuColorParameter
 			mov bl, [bx+si]
 			mov bh, 0
+>>>>>>> local
 			int 10h
 			mov ah, 2
 			inc dl
@@ -205,6 +219,62 @@ MainInput	proc
 		mov message[si], al
 		inc messagePos
 	@@GetKey:
+<<<<<<< testing
+			mov ah, 3
+			mov bh, 0
+			int 10h ; int 10h, 3 gets cursor position, returns to dx
+			mov cursorX, dl
+			mov cursorY, dh
+			mov ah, 1
+			int 21h
+			cmp al, 0
+			jnz @@Write
+			mov ah, 7
+			int 21h
+			cmp al, 21h ; alt+f
+			jz @@FileMenu
+			cmp al, 44h ; F10
+			jz @@FileMenu
+			cmp al, 12h ; alt+e
+			jz @@EditMenu
+			cmp al, 23h ; alt+h
+			jz @@HelpMenu
+			; cmp al, 50h ; down
+			; jz @@MoveDown
+			; cmp al, 4Bh ; left
+			; jz @@MoveLeft
+			; cmp al, 4Dh ; right
+			; jz @@MoveRight
+			; cmp al, 48h ; up
+			; jz @@MoveUp
+			mov ah, 2
+			mov bh, 0
+			mov dl, cursorX
+			mov dh, cursorY
+			int 10h
+			jmp @@GetKey
+	@@FileMenu:
+			push offset menu
+			push offset fileHighC
+			push 0
+			call PrintBar
+			push offset fileMenu
+			push offset fileMenuC
+			push 1
+			call PrintBar
+			mov ah, 2
+			mov bh, 0
+			mov dl, cursorX
+			mov dh, cursorY
+			int 10h
+			mov dx, offset askForName
+			mov ah, 9
+			int 21h
+			call SetFileName
+			call CreateFile
+			call WriteToFile
+			ret
+=======
 		mov ah, 3
 		mov bh, 0
 		int 10h ; int 10h, 3 gets cursor position, returns to dx
@@ -264,6 +334,7 @@ RecognizeDoubleKey	proc
 		call CreateFile
 		call WriteToFile
 		ret
+>>>>>>> local
 	@@EditMenu:
 		mov ah, 7
 		int 21h
@@ -277,11 +348,16 @@ RecognizeDoubleKey	endp
 	Start: 	mov ax, data
 			mov ds, ax
 			call ClearScreen
+<<<<<<< testing
 			push offset menu
 			push offset menuColor
 			push 0
 			call PrintBar
+			call Input
+=======
+			call PrintMainMenu
 			call MainInput
+>>>>>>> local
 			call CloseFile
 	Stop:	mov ah, 4Ch
 			int 21h
