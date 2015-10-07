@@ -13,17 +13,18 @@ data	segment
 	askForName	db	10, 10, 13, "Filename: ", "$"
     menu        db  " File  Edit  Help", 59 dup(20h), "F10 "
     menuColor   db  77h, 74h, 70h, 70h, 70h, 77h, 77h, 74h, 70h, 70h, 70h, 77h, 77h, 74h, 70h, 70h, 70h, 59 dup(77h), 3 dup(74h), 77h
-	MENU_LEN	=	$-menuColor
 	fileHighC	db	37h, 34h, 30h, 30h, 30h, 37h, 77h, 74h, 70h, 70h, 70h, 77h, 77h, 74h, 70h, 70h, 70h, 59 dup(77h), 3 dup(74h), 77h
 	editHighC	db	77h, 74h, 70h, 70h, 70h, 77h, 37h, 34h, 30h, 30h, 30h, 37h, 77h, 74h, 70h, 70h, 70h, 59 dup(77h), 3 dup(74h), 77h
 	fileMenu	db	" New (Ctrl+N)  Open (Ctrl+O)  Save (Ctrl+S)", 37 dup(20h)
 	fileMenuC	db	6 dup(70h), 6 dup(74h), 9 dup(70h), 6 dup(74h), 9 dup (70h), 6 dup(74h), 38 dup(70h)
-	message		db	0FFh	dup(?)
-	MESSAGE_LEN	=	$-message
 	messagePos	dw	0
 	cursorX		db	0
 	cursorY		db  0
 data	ends
+
+dat2	segment
+	message		db	0FFFFh	dup(?)
+dat2	ends
 
 stac	segment stack
 		    dw 300h dup(?)
@@ -74,7 +75,7 @@ PrintBar	proc
 			inc dl
 			int 10h
 			inc si
-			cmp si, MENU_LEN ; const in DATASEG
+			cmp si, 80
 			jc @@Print
 			mov ah, 2
 			mov bh, 0
@@ -86,6 +87,8 @@ PrintBar	proc
 PrintBar	endp
 
 CreateFile	proc
+			mov ax, data
+			mov ds, ax
 			mov dx, offset fileName
 			mov cx, 0
 			mov ah, 3Ch
@@ -95,6 +98,8 @@ CreateFile	proc
 CreateFile	endp
 
 SetFileName	proc
+			mov ax, data
+			mov ds, ax
 			mov dx, offset fileName
 			mov bx, dx
 			mov [byte ptr bx], 21
@@ -124,6 +129,8 @@ SetFileName	proc
 SetFileName	endp
 
 OpenFile	proc
+			mov ax, data
+			mov ds, ax
 			mov dx, offset fileName
 			mov ah, 3Dh
 			mov al, 2
@@ -174,6 +181,8 @@ OpenFile	proc
 OpenFile	endp
 
 ReadFile	proc
+			mov ax, data
+			mov ds, ax
 			mov bx, filePointer
 			mov cx, 0FFh
 			mov dx, offset buffer
@@ -183,8 +192,12 @@ ReadFile	proc
 ReadFile	endp
 
 WriteToFile	proc
+			mov ax, data
+			mov ds, ax
 			mov bx, filePointer
 			mov cx, messagePos
+			mov ax, dat2
+			mov ds, ax
 			mov dx, offset message
 			mov ah, 40h
 			int 21h
@@ -192,6 +205,8 @@ WriteToFile	proc
 WriteToFile	endp
 
 CloseFile	proc
+			mov ax, data
+			mov ds, ax
 			mov bx, filePointer
 			mov ah, 3Eh
 			int 21h
@@ -199,10 +214,18 @@ CloseFile	proc
 CloseFile	endp
 
 MainInput	proc
+		mov ax, data
+		mov ds, ax
 		jmp @@GetKey
 	@@Write:
 		mov si, messagePos
+		mov ax, dat2
+		mov ds, ax
+		assume ds:dat2
 		mov message[si], al
+		mov ax, data
+		mov ds, ax
+		assume ds:data
 		inc messagePos
 	@@GetKey:
 		mov ah, 3
@@ -219,6 +242,8 @@ MainInput	proc
 MainInput	endp
 
 RecognizeDoubleKey	proc
+		mov ax, data
+		mov ds, ax
 		mov ah, 7
 		int 21h
 		cmp al, 21h ; alt+f
