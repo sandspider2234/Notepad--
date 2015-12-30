@@ -1,11 +1,11 @@
 from os import remove
-from glob import glob
+from glob import glob as get_files
 
 
 def main():
     file_extensions = ["*.TXT", "*.DOC", "*.ODT", "*.RTF"]
     for extension in file_extensions:
-        for file in glob(extension):
+        for file in get_files(extension):
             remove(file)
 
 
