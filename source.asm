@@ -1,16 +1,21 @@
 locals
 jumps
 
+; Macros for switching DSEGs.
 setDataDS	macro
+	push ax
 	mov ax, data
 	mov ds, ax
 	assume ds:data
+	pop ax
 endm
 
 setMesDS	macro
+	push ax
 	mov ax, mesDat
 	mov ds, ax
 	assume ds:mesDat
+	pop ax
 endm
 
 data	segment
@@ -41,6 +46,7 @@ data	segment
 	asmWild		db	"*.ASM"
 data	ends
 
+; Second data segment dedicated for a large message buffer which allows for 65535 bytes of data.
 mesDat	segment
 	message		db	0FFFFh	dup(?)
 mesDat	ends
@@ -70,8 +76,11 @@ ClearScreen	proc
 		ret
 ClearScreen endp
 
+; Gets called whenever there's an error.
+; Displays error message.
+; Uses AX to determine which error message to display.
 ErrorMessages	proc
-		push dx
+		push ax dx
 		pushf
 		cmp ax, 2
 		jz @@FileNotFound
@@ -83,32 +92,37 @@ ErrorMessages	proc
 		jz @@AccessCodeInvalid
 		jmp @@UnknownError
 	@@FileNotFound:
-		mov dx, offset errorMsg2
+		lea dx, errorMsg2
 		jmp @@ShowError
 	@@PathDoesNotExist:
-		mov dx, offset errorMsg3
+		lea dx, errorMsg3
 		jmp @@ShowError
 	@@AccessDenied:
-		mov dx, offset errorMsg5
+		lea dx, errorMsg5
 		jmp @@ShowError
 	@@AccessCodeInvalid:
-		mov dx, offset errorMsg12
+		lea dx, errorMsg12
 		jmp @@ShowError
 	@@UnknownError:
-		mov dx, offset uErrorMsg
+		lea dx, uErrorMsg
 	@@ShowError:
 		mov ah, 9
 		int 21h
 	@@EndProc:
-		mov dx, offset pressAnyKey
+		lea dx, pressAnyKey
 		int 21h
 		mov ah, 7
 		int 21h
 		popf
-		pop dx
+		pop dx ax
 		ret
 ErrorMessages	endp
 
+; Prints menu bar.
+; Recieves three parameters through stack:
+; TextParameter - array of 80 bytes which contains textual data to print.
+; MenuColorParameter - array of 80 bytes which contains text color attributes.
+; RowToPrint - type int. This determines where to print the menu bar.
 TextParameter		equ	[bp+8]
 MenuColorParameter	equ	[bp+6]
 RowToPrint			equ	[bp+4]
@@ -116,6 +130,7 @@ PrintBar	proc
 		push bp
 		mov bp, sp
 		push ax bx cx dx si
+		pushf
 		mov dh, RowToPrint
 		mov dl, 0
 		mov bh, 0
@@ -142,28 +157,40 @@ PrintBar	proc
 		mov dl, 0
 		mov dh, 2
 		int 10h
+		popf
 		pop si dx cx bx ax
 		pop bp
 		ret 6
 PrintBar	endp
 
+; Creates a file according to passed pathname.
+; Recieves one parameter through the stack:
+; CreateFile - Pathname in ASCII.
 FileToCreate	equ	[bp+4]
 CreateFile	proc
 		push bp
 		mov bp, sp
+		push ax cx dx
+		pushf
 		mov dx, FileToCreate
 		mov cx, 0
 		mov ah, 3Ch
 		int 21h
 		mov fileHandle, ax
+		popf
+		pop dx cx ax
 		pop bp
 		ret 2
 CreateFile	endp
 
+; Asks user for a filename and pushes answer to memory after cleaning it up.
 SetFileName	proc
 		push ax bx dx si
 		pushf
-		mov dx, offset fileName
+		lea dx, askForName
+		mov ah, 9
+		int 21h
+		lea dx, fileName
 		mov bx, 21
 		mov ah, 0Ah
 		int 21h
@@ -192,11 +219,12 @@ SetFileName	proc
 		ret
 SetFileName	endp
 
+; Opens file using filename from memory.
 OpenFile	proc
 		push ax dx ds
 		pushf
 		setDataDS
-		mov dx, offset fileName
+		lea dx, fileName
 		mov ah, 3Dh
 		mov al, 2
 		int 21h
@@ -212,29 +240,29 @@ OpenFile	proc
 		ret
 OpenFile	endp
 
+; Reads opened file into message buffer.
 ReadFile	proc
 		push ax bx cx dx si ds
 		pushf
 		mov bx, fileHandle
 		mov cx, 0FFFFh
 		setMesDS
-		mov dx, offset message
+		lea dx, message
 		mov ah, 3Fh
 		int 21h
-		push ax
 		setDataDS
-		pop ax
 		mov numOfReadBytes, ax
 		mov messagePos, ax
 		mov si, ax
 		setMesDS
-		mov message[si], '$'
+		mov message[si], '$' ; Adds a terminate to the end of the string.
 		setDataDS
 		popf
 		pop ds si dx cx bx ax
 		ret
 ReadFile	endp
 
+; Gets current position of file pointer and returns it to memory.
 GetFilePos	proc
 		push ax bx cx dx
 		pushf
@@ -250,6 +278,7 @@ GetFilePos	proc
 		ret
 GetFilePos	endp
 
+; Prints buffer to screen.
 PrintMessage	proc
 		push ax bx dx ds
 		pushf
@@ -260,7 +289,7 @@ PrintMessage	proc
 		int 10h
 		setMesDS
 		mov ah, 9
-		mov dx, offset message
+		lea dx, message
 		int 21h
 		setDataDS
 		mov ah, 3
@@ -282,10 +311,11 @@ PrintMessage	endp
 
 ; TODO: Should list all files with txt, bat, py and asm extensions.
 ListFiles	proc
-		mov si, offset txtWild
+		lea si, txtWild
 		ret
 ListFiles	endp
 
+; Writes to file using handle and message buffer.
 WriteToFile	proc
 		push ax bx cx dx ds
 		pushf
@@ -293,7 +323,7 @@ WriteToFile	proc
 		mov bx, fileHandle
 		mov cx, messagePos
 		setMesDS
-		mov dx, offset message
+		lea dx, message
 		mov ah, 40h
 		int 21h
 		jc @@Error
@@ -307,6 +337,7 @@ WriteToFile	proc
 		ret
 WriteToFile	endp
 
+; Closes file and frees file handle.
 CloseFile	proc
 		push ax bx ds
 		pushf
@@ -319,29 +350,35 @@ CloseFile	proc
 		ret
 CloseFile	endp
 
+; Deletes a file according to passed pathname.
+; Recieves one parameter through the stack:
+; FileToDelete - Pathname in ASCII.
 FileToDelete	equ	[bp+4]
 DeleteFile	proc
 		push bp
 		mov bp, sp
+		push ax dx
+		pushf
 		mov ah, 41h
 		mov dx, FileToDelete	; pointer to ascii file name to delete
 		int 21h
 		jnc @@EndProc	; if CF set, error code is in AX
 		call ErrorMessages
 	@@EndProc:
+		popf
+		pop dx ax
 		pop bp
 		ret 2
 DeleteFile	endp
 
+; Main input loop. Gets input from user and writes it to message buffer.
 MainInput	proc
 		setDataDS
 		jmp @@GetKey
 	@@Enter:
 		mov si, messagePos
 		inc messagePos
-		push ax
 		setMesDS
-		pop ax
 		mov message[si], 10
 		inc si
 		mov message[si], 13
@@ -351,9 +388,7 @@ MainInput	proc
 	@@Write:
 		mov si, messagePos
 		inc messagePos
-		push ax
 		setMesDS
-		pop ax
 		mov message[si], al
 		setDataDS
 	@@GetKey:
@@ -369,6 +404,7 @@ MainInput	proc
 		ret
 MainInput	endp
 
+; Queries cursor position and returns data to memory.
 SetCursorPosData	proc
 		push ax bx dx
 		pushf
@@ -382,6 +418,7 @@ SetCursorPosData	proc
 		ret
 SetCursorPosData	endp
 
+; Uses data from previous int 21h;7 in order to determine a keyboard shortcut.
 RecognizeDoubleKey	proc
 		push ax bx dx
 		pushf
@@ -429,9 +466,6 @@ RecognizeDoubleKey	proc
 		mov dl, cursorX
 		mov dh, cursorY
 		int 10h
-		mov dx, offset askForName
-		mov ah, 9
-		int 21h
 		call SetFileName
 		push offset fileName
 		call CreateFile
@@ -454,9 +488,6 @@ RecognizeDoubleKey	proc
 		mov dl, cursorX
 		mov dh, cursorY
 		int 10h
-		mov dx, offset askForName
-		mov ah, 9
-		int 21h
 		call SetFileName
 		call OpenFile
 		call ReadFile
@@ -483,12 +514,13 @@ RecognizeDoubleKey	proc
 		int 21h
 RecognizeDoubleKey	endp
 
+; Upon request of exit, asks user whether to save the file or not.
 CheckSave	proc
 		push ax dx
 		pushf
 	@@PrintStart:
 		mov ah, 9
-		mov dx, offset checkSaveS
+		lea dx, checkSaveS
 		int 21h
 	@@GetInput:
 		mov ah, 1
@@ -502,13 +534,10 @@ CheckSave	proc
 		cmp al, 4Eh ; caps N
 		jz @@No
 		mov ah, 9
-		mov dx, offset checkSaveE
+		lea dx, checkSaveE
 		int 21h
 		jmp @@PrintStart
 	@@Yes:
-		mov ah, 9
-		mov dx, offset askForName
-		int 21h
 		call SetFileName
 		push offset fileName
 		call CreateFile
