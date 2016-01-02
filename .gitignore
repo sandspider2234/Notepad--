@@ -27,6 +27,7 @@ obj/
 [Rr]elease*/
 _ReSharper*/
 [Tt]est[Rr]esult*
+
 #TASM and program leftovers
 *.exe
 *.txt
@@ -35,60 +36,11 @@ _ReSharper*/
 *.tr
 *.map
 TDA
-TEST
-TEST.DOC
-TEST.RTF
-TTT
+*.DOC
+*.RTF
 STRINGS.ASM
 .idea
 
-Skip to content
-This repository
-
-    Explore
-    Features
-    Enterprise
-    Blog
-
-1,245
-26,840
-
-    9,819
-
-github/gitignore
-
-gitignore/Python.gitignore
-@gsnedders gsnedders on Apr 28 Add Jython compiled class files to the Python ignore file.
-
-33 contributors
-@arcresu
-@Metallicow
-@tzicatl
-@EvandroLG
-@Lucretiel
-@matheussl
-@jspahrsummers
-@rayshan
-@relekang
-@borntyping
-@sigo
-@llonchj
-@kdeldycke
-@reinout
-@honzajavorek
-@hugovk
-@gsnedders
-@xiaogaozi
-@adamv
-@skuschel
-@nvie
-@ecarreras
-@thedaniel
-@cjerdonek
-@Visgean
-@arjun024
-and others
-59 lines (49 sloc) 0.713 kB
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
