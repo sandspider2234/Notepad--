@@ -30,10 +30,10 @@ data	segment
 	askForName	db	10, 10, 13, "Filename: ", "$"
 	checkSaveS	db	10, 13, "Do you want to save before quitting? (Y/N) ", "$"
 	checkSaveE	db	10, 13, "INVALID INPUT, try again!", "$"
-    menu        db  " File  Edit  Help", 59 dup(20h), "F10 "
-    menuColor   db  77h, 74h, 70h, 70h, 70h, 77h, 77h, 74h, 70h, 70h, 70h, 77h, 77h, 74h, 70h, 70h, 70h, 59 dup(77h), 3 dup(74h), 77h
-	fileHighC	db	37h, 34h, 30h, 30h, 30h, 37h, 77h, 74h, 70h, 70h, 70h, 77h, 77h, 74h, 70h, 70h, 70h, 59 dup(77h), 3 dup(74h), 77h
-	editHighC	db	77h, 74h, 70h, 70h, 70h, 77h, 37h, 34h, 30h, 30h, 30h, 37h, 77h, 74h, 70h, 70h, 70h, 59 dup(77h), 3 dup(74h), 77h
+    menu        db  " File  Edit  Help", 5 dup(20h), "Opened: ", 46 dup(20h), "F10 "
+    menuColor   db  77h, 74h, 70h, 70h, 70h, 77h, 77h, 74h, 70h, 70h, 70h, 77h, 77h, 74h, 70h, 70h, 70h, 5 dup(77h), 8 dup(70h), 46 dup(72h), 3 dup(74h), 77h
+	fileHighC	db	37h, 34h, 30h, 30h, 30h, 37h, 77h, 74h, 70h, 70h, 70h, 77h, 77h, 74h, 70h, 70h, 70h, 5 dup(77h), 8 dup(70h), 46 dup(72h), 3 dup(74h), 77h
+	editHighC	db	77h, 74h, 70h, 70h, 70h, 77h, 37h, 34h, 30h, 30h, 30h, 37h, 77h, 74h, 70h, 70h, 70h, 5 dup(77h), 8 dup(70h), 46 dup(72h), 3 dup(74h), 77h
 	fileMenu	db	" New (Ctrl+N)  Open (Ctrl+O)  Save (Ctrl+S)", 37 dup(20h)
 	fileMenuC	db	6 dup(70h), 6 dup(74h), 9 dup(70h), 6 dup(74h), 9 dup (70h), 6 dup(74h), 38 dup(70h)
 	messagePos	dw	0
@@ -66,9 +66,9 @@ ClearScreen	proc
 	@@Clear:
 		int 21h
 		loop @@Clear
-		mov dl, 0
-		mov dh, 0
-		mov bh, 0
+		xor dl, dl
+		xor dh, dh
+		xor bh, bh
 		mov ah, 2
 		int 10h
 		popf			; Pop flags from stack
@@ -132,11 +132,11 @@ PrintBar	proc
 		push ax bx cx dx si
 		pushf
 		mov dh, RowToPrint
-		mov dl, 0
-		mov bh, 0
+		xor dl, dl
+		xor bh, bh
 		mov ah, 2
 		int 10h
-		mov si, 0
+		xor si, si
 		mov cx, 1
 	@@Print:
 		mov ah, 9
@@ -144,7 +144,7 @@ PrintBar	proc
 		mov al, [bx+si]
 		mov bx, MenuColorParameter
 		mov bl, [bx+si]
-		mov bh, 0
+		xor bh, bh
 		int 10h
 		mov ah, 2
 		inc dl
@@ -153,8 +153,8 @@ PrintBar	proc
 		cmp si, 80
 		jc @@Print
 		mov ah, 2
-		mov bh, 0
-		mov dl, 0
+		xor bh, bh
+		xor dl, dl
 		mov dh, 2
 		int 10h
 		popf
@@ -173,7 +173,7 @@ CreateFile	proc
 		push ax cx dx
 		pushf
 		mov dx, FileToCreate
-		mov cx, 0
+		xor cx, cx
 		mov ah, 3Ch
 		int 21h
 		mov fileHandle, ax
@@ -198,6 +198,8 @@ SetFileName	proc
 	; Shift moves each letter after the first two ones two bytes to the left.
 	; This is because the first two bytes are taken by information that is
 	; not needed and disturbs reading the file name.
+		mov cl, fileName[1]
+		xor ch, ch
 	@@Shift:
 		mov al, fileName[si]
 		sub si, 2
@@ -205,7 +207,7 @@ SetFileName	proc
 		add si, 3
 		cmp si, 21
 		jc @@Shift
-		mov si, 0
+		xor si, si
 	; Find removes the "enter" ascii code in the end of the string.
 	@@FindEnter:
 		mov al, fileName[si]
@@ -214,6 +216,14 @@ SetFileName	proc
 		jnz @@FindEnter
 		dec si
 		mov fileName[si], 0
+	@@PrintOnBar:
+		mov ax, data
+		mov es, ax
+		lea si, fileName
+		cld
+		lea di, menu
+		add di, 30
+		rep movsb
 		popf
 		pop si dx bx ax
 		ret
@@ -269,8 +279,8 @@ GetFilePos	proc
 		mov ah, 42h 	; seek file pointer (same as file.seek() in python)
 		mov al, 1		; current location plus offset
 		mov bx, fileHandle
-		mov cx, 0		; high order word of bytes to move
-		mov dx, 0		; low order word of bytes to move
+		xor cx, cx		; high order word of bytes to move
+		xor dx, dx		; low order word of bytes to move
 		int 21h 		; new pointer stored in DX:AX
 		mov messagePos, ax
 		popf
@@ -283,9 +293,9 @@ PrintMessage	proc
 		push ax bx dx ds
 		pushf
 		mov ah, 2
-		mov bh, 0
+		xor bh, bh
 		mov dh, 2
-		mov dl, 0
+		xor dl, dl
 		int 10h
 		setMesDS
 		mov ah, 9
@@ -296,9 +306,7 @@ PrintMessage	proc
 		int 10h
 		mov cursorX, dl
 		mov cursorY, dh
-		push offset menu
-		push offset menuColor
-		push 0
+		push offset menu offset menuColor 0
 		call PrintBar
 		mov ah, 2
 		mov dl, cursorX
@@ -327,6 +335,8 @@ WriteToFile	proc
 		mov ah, 40h
 		int 21h
 		jc @@Error
+		mov si, cx
+		mov message[si], '$'
 		popf
 		pop ds dx cx bx ax
 		ret
@@ -385,6 +395,29 @@ MainInput	proc
 		setDataDS
 		inc messagePos
 		jmp @@GetKey
+	@@Backspace:
+		cmp messagePos, 0
+		jz @@GetKey
+		mov si, messagePos
+		dec messagePos
+		setMesDS
+		mov message[si], al
+		setDataDS
+		cmp cursorX, 0
+		ja @@DontGoUp
+		mov dl, 79
+		mov dh, cursorY
+		dec dh
+		xor bh, bh
+		mov ah, 2
+		int 10h
+	@@DontGoUp:
+		mov ah, 0Ah
+		xor al, al
+		xor bh, bh
+		mov cx, 1
+		int 10h
+		jmp @@GetKey
 	@@Write:
 		mov si, messagePos
 		inc messagePos
@@ -397,6 +430,8 @@ MainInput	proc
 		int 21h
 		cmp al, 13
 		jz @@Enter
+		cmp al, 8
+		jz @@Backspace
 		cmp al, 0
 		jnz @@Write
 		call RecognizeDoubleKey
@@ -409,7 +444,7 @@ SetCursorPosData	proc
 		push ax bx dx
 		pushf
 		mov ah, 3
-		mov bh, 0
+		xor bh, bh
 		int 10h
 		mov cursorX, dl
 		mov cursorY, dh
@@ -445,7 +480,7 @@ RecognizeDoubleKey	proc
 		; cmp al, 48h ; up
 		; jz @@MoveUp
 		mov ah, 2
-		mov bh, 0
+		xor bh, bh
 		mov dl, cursorX
 		mov dh, cursorY
 		int 10h
@@ -453,16 +488,12 @@ RecognizeDoubleKey	proc
 		pop dx bx ax
 		ret
 	@@SaveFile:
-		push offset menu
-		push offset fileHighC
-		push 0
+		push offset menu offset fileHighC 0
 		call PrintBar
-		push offset fileMenu
-		push offset fileMenuC
-		push 1
+		push offset fileMenu offset fileMenuC 1
 		call PrintBar
 		mov ah, 2
-		mov bh, 0
+		xor bh, bh
 		mov dl, cursorX
 		mov dh, cursorY
 		int 10h
@@ -471,20 +502,18 @@ RecognizeDoubleKey	proc
 		call CreateFile
 		call OpenFile
 		call WriteToFile
+		call ClearScreen
+		call PrintMessage
 		popf
 		pop dx bx ax
 		ret
 	@@OpenFile:
-		push offset menu
-		push offset fileHighC
-		push 0
+		push offset menu offset fileHighC 0
 		call PrintBar
-		push offset fileMenu
-		push offset fileMenuC
-		push 1
+		push offset fileMenu offset fileMenuC 1
 		call PrintBar
 		mov ah, 2
-		mov bh, 0
+		xor bh, bh
 		mov dl, cursorX
 		mov dh, cursorY
 		int 10h
@@ -555,9 +584,7 @@ CheckSave	endp
 	Start:
 		setDataDS
 		call ClearScreen
-		push offset menu
-		push offset menuColor
-		push 0
+		push offset menu offset menuColor 0
 		call PrintBar
 		call MainInput
 		call CloseFile
