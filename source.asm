@@ -27,11 +27,11 @@ data	segment
 	errorMsg5	db	"ACCESS DENIED", 10, 13, "$"
 	errorMsg12	db	"ACCESS CODE INVALID", 10, 13, "$"
 	pressAnyKey	db	"Press any key to continue...", 10, 13, "$"
-	askForName	db	10, 10, 13, "Filename: ", "$"
+	askForName	db	10, 13, "Filename: ", "$"
 	checkSaveS	db	10, 13, "Do you want to save before quitting? (Y/N) ", "$"
 	checkSaveE	db	10, 13, "INVALID INPUT, try again!", "$"
-    menu        db  " File  Edit  Help", 5 dup(20h), "Opened: ", 46 dup(20h), "F10 "
-    menuColor   db  77h, 74h, 70h, 70h, 70h, 77h, 77h, 74h, 70h, 70h, 70h, 77h, 77h, 74h, 70h, 70h, 70h, 5 dup(77h), 8 dup(70h), 46 dup(72h), 3 dup(74h), 77h
+	menu        db  " File  Edit  Help", 5 dup(20h), "Opened: ", 46 dup(20h), "F10 "
+	menuColor   db  77h, 74h, 70h, 70h, 70h, 77h, 77h, 74h, 70h, 70h, 70h, 77h, 77h, 74h, 70h, 70h, 70h, 5 dup(77h), 8 dup(70h), 46 dup(72h), 3 dup(74h), 77h
 	fileHighC	db	37h, 34h, 30h, 30h, 30h, 37h, 77h, 74h, 70h, 70h, 70h, 77h, 77h, 74h, 70h, 70h, 70h, 5 dup(77h), 8 dup(70h), 46 dup(72h), 3 dup(74h), 77h
 	editHighC	db	77h, 74h, 70h, 70h, 70h, 77h, 37h, 34h, 30h, 30h, 30h, 37h, 77h, 74h, 70h, 70h, 70h, 5 dup(77h), 8 dup(70h), 46 dup(72h), 3 dup(74h), 77h
 	fileMenu	db	" New (Ctrl+N)  Open (Ctrl+O)  Save (Ctrl+S)", 37 dup(20h)
@@ -76,8 +76,7 @@ ClearScreen	proc
 		ret
 ClearScreen endp
 
-; Gets called whenever there's an error.
-; Displays error message.
+; Gets called whenever there's an error, displays error message.
 ; Uses AX to determine which error message to display.
 ErrorMessages	proc
 		push ax dx
@@ -194,12 +193,12 @@ SetFileName	proc
 		mov bx, 21
 		mov ah, 0Ah
 		int 21h
-		mov si, 2
+		mov cl, fileName[1]
+		xor ch, ch
 	; Shift moves each letter after the first two ones two bytes to the left.
 	; This is because the first two bytes are taken by information that is
 	; not needed and disturbs reading the file name.
-		mov cl, fileName[1]
-		xor ch, ch
+		mov si, 2
 	@@Shift:
 		mov al, fileName[si]
 		sub si, 2
@@ -207,14 +206,9 @@ SetFileName	proc
 		add si, 3
 		cmp si, 21
 		jc @@Shift
-		xor si, si
-	; Find removes the "enter" ascii code in the end of the string.
-	@@FindEnter:
-		mov al, fileName[si]
-		inc si
-		cmp al, 0Dh
-		jnz @@FindEnter
-		dec si
+	; End of Shift label, these lines remove the enter ASCII code
+	; at the end of the string.
+		mov si, cx
 		mov fileName[si], 0
 	@@PrintOnBar:
 		mov ax, data
@@ -396,27 +390,7 @@ MainInput	proc
 		inc messagePos
 		jmp @@GetKey
 	@@Backspace:
-		cmp messagePos, 0
-		jz @@GetKey
-		mov si, messagePos
-		dec messagePos
-		setMesDS
-		mov message[si], al
-		setDataDS
-		cmp cursorX, 0
-		ja @@DontGoUp
-		mov dl, 79
-		mov dh, cursorY
-		dec dh
-		xor bh, bh
-		mov ah, 2
-		int 10h
-	@@DontGoUp:
-		mov ah, 0Ah
-		xor al, al
-		xor bh, bh
-		mov cx, 1
-		int 10h
+		call Backspace
 		jmp @@GetKey
 	@@Write:
 		mov si, messagePos
@@ -438,6 +412,78 @@ MainInput	proc
 		jmp @@GetKey
 		ret
 MainInput	endp
+
+; Handles backspace press.
+Backspace	proc
+		push ax bx cx dx si di ds es
+		pushf
+		cmp messagePos, 0
+		jz @@EndProc
+		dec messagePos
+		mov si, messagePos
+		setMesDS
+		mov message[si], 0
+		setDataDS
+		cmp cursorX, 0
+		ja @@DelLetter
+		dec si
+		setMesDS
+		cmp message[si], 10
+		jz @@EnterFound
+	@@JmpToEndLine:
+		setDataDS
+		mov dl, 79
+		mov dh, cursorY
+		dec dh
+		xor bh, bh
+		mov ah, 2
+		int 10h
+		jmp @@DelLetter
+	@@EnterFound:
+		dec si
+		mov ax, mesDat
+		mov es, ax
+		assume es:mesDat
+		lea di, message
+		add di, si
+		std
+		mov al, 13
+		mov cx, si
+		repnz scasb
+		cmp di, 0
+		jz @@DiIsStartOfDoc
+		inc di
+		jmp @@Division
+	@@DiIsStartOfDoc: 
+		inc si
+	@@Division:
+		sub si, di
+		mov ax, si
+		mov dl, 80
+		div dl
+		xor bh, bh
+		setDataDS
+		mov dh, cursorY
+		dec dh
+		mov dl, ah
+		mov ah, 2
+		int 10h
+		dec messagePos
+		mov si, messagePos
+		setMesDS
+		mov message[si], 0
+		setDataDS
+	@@DelLetter:
+		mov ah, 0Ah
+		xor al, al
+		xor bh, bh
+		mov cx, 1
+		int 10h
+	@@EndProc:
+		popf
+		pop es ds di si dx cx bx ax
+		ret
+Backspace	endp
 
 ; Queries cursor position and returns data to memory.
 SetCursorPosData	proc
@@ -462,7 +508,7 @@ RecognizeDoubleKey	proc
 		cmp al, 21h ; alt+f
 		jz @@SaveFile
 		cmp al, 44h ; F10
-		jz @@SaveFile
+		jz @@MenuMode
 		cmp al, 12h ; alt+e
 		jz @@EditMenu
 		cmp al, 23h ; alt+h
@@ -532,6 +578,12 @@ RecognizeDoubleKey	proc
 		pop dx bx ax
 		ret
 	@@HelpMenu:
+		mov ah, 7
+		int 21h
+		popf
+		pop dx bx ax
+		ret
+	@@MenuMode:
 		mov ah, 7
 		int 21h
 		popf

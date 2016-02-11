@@ -1,4 +1,4 @@
 DEL *.txt
 DEL *.doc
-DEL *.odt 
+DEL *.odt
 DEL *.rtf
