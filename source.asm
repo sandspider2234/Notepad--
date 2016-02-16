@@ -1,6 +1,53 @@
 locals
 jumps
 
+setCursorToCurrData	macro
+	mov ah, 2
+	xor bh, bh
+	mov dl, cursorX
+	mov dh, cursorY
+	int 10h
+endm
+
+completeNewFile	macro
+	call CheckSave
+	call SetFileName
+	push offset fileName
+	call CreateFile
+	call OpenFile
+	call WriteToFile
+	call ClearScreen
+	call PrintMessage
+endm
+
+completeSaveFile	macro
+	push offset menuMenu offset mainFileHighC 0
+	call PrintBar
+	push offset fileMenu offset fileMenuSaveHigh 1
+	call PrintBar
+	setCursorToCurrData
+	call SetFileName
+	push offset fileName
+	call CreateFile
+	call OpenFile
+	call WriteToFile
+	call ClearScreen
+	call PrintMessage
+endm
+
+completeOpenFile	macro
+	push offset menuType offset mainFileHighC 0
+	call PrintBar
+	push offset fileMenu offset fileMenuOpenHigh 1
+	call PrintBar
+	setCursorToCurrData
+	call SetFileName
+	call OpenFile
+	call ReadFile
+	call ClearScreen
+	call PrintMessage
+endm
+
 ; Macros for switching DSEGs.
 setDataDS	macro
 	push ax
@@ -30,12 +77,25 @@ data	segment
 	askForName	db	10, 13, "Filename: ", "$"
 	checkSaveS	db	10, 13, "Do you want to save before quitting? (Y/N) ", "$"
 	checkSaveE	db	10, 13, "INVALID INPUT, try again!", "$"
-	menu        db  " File  Edit  Help", 5 dup(20h), "Opened: ", 46 dup(20h), "F10 "
-	menuColor   db  77h, 74h, 70h, 70h, 70h, 77h, 77h, 74h, 70h, 70h, 70h, 77h, 77h, 74h, 70h, 70h, 70h, 5 dup(77h), 8 dup(70h), 46 dup(72h), 3 dup(74h), 77h
-	fileHighC	db	37h, 34h, 30h, 30h, 30h, 37h, 77h, 74h, 70h, 70h, 70h, 77h, 77h, 74h, 70h, 70h, 70h, 5 dup(77h), 8 dup(70h), 46 dup(72h), 3 dup(74h), 77h
-	editHighC	db	77h, 74h, 70h, 70h, 70h, 77h, 37h, 34h, 30h, 30h, 30h, 37h, 77h, 74h, 70h, 70h, 70h, 5 dup(77h), 8 dup(70h), 46 dup(72h), 3 dup(74h), 77h
-	fileMenu	db	" New (Ctrl+N)  Open (Ctrl+O)  Save (Ctrl+S)", 37 dup(20h)
-	fileMenuC	db	6 dup(70h), 6 dup(74h), 9 dup(70h), 6 dup(74h), 9 dup (70h), 6 dup(74h), 38 dup(70h)
+	menuType	db  " File  Edit  Help", 5 dup(20h), "Opened: ", 45 dup(20h), "TYPE "
+	menuMenu	db	" File  Edit  Help", 5 dup(20h), "Opened: ", 45 dup(20h), "MENU "
+	menuColor	db  77h, 74h, 3 dup(70h), 2 dup(77h), 74h, 3 dup(70h), 2 dup(77h), 74h, 3 dup(70h), 5 dup(77h), 8 dup(70h), 44 dup(72h), 6 dup(2Fh)
+	mainFileHighC	db	37h, 34h, 3 dup(30h), 37h, 77h, 74h, 3 dup(70h), 2 dup(77h), 74h, 3 dup(70h), 5 dup(77h), 8 dup(70h), 44 dup(72h), 6 dup(2Fh)
+	mainEditHighC	db	77h, 74h, 3 dup(70h), 77h, 37h, 34h, 3 dup(30h), 37h, 77h, 74h, 3 dup(70h), 5 dup(77h), 8 dup(70h), 44 dup(72h), 6 dup(2Fh)
+	mainHelpHighC	db	77h, 74h, 3 dup(70h), 77h, 77h, 74h, 3 dup(70h), 77h, 37h, 34h, 3 dup(30h), 37h, 4 dup(77h), 8 dup(70h), 44 dup(72h), 6 dup(2Fh)
+	fileMenu	db	" New (Alt+N)  Open (Alt+O)  Save (Alt+S)", 40 dup(20h)
+	fileMenuNewHigh	db	6 dup(30h), 5 dup(34h), 2 dup(30h), 7 dup(70h), 5 dup(74h), 9 dup(70h), 5 dup(74h), 41 dup(70h)
+	fileMenuOpenHigh	db	6 dup(70h), 5 dup(74h), 2 dup(70h), 7 dup(30h), 5 dup(34h), 2 dup(30h), 7 dup(70h), 5 dup(74h), 41 dup(70h)
+	fileMenuSaveHigh	db	6 dup(70h), 5 dup(74h), 9 dup(70h), 5 dup(74h), 2 dup(70h), 7 dup(30h), 5 dup(34h), 2 dup(30h), 40 dup(70h)
+	editMenu	db	" Delete all text (Alt+Del)", 54 dup(20h)
+	editMenuDeleteHigh	db	18 dup(30h), 7 dup(34h), 2 dup(30h), 53 dup(70h)
+	helpMenu	db	" Help (F1)  About (F2)", 58 dup(20h)
+	helpMenuF1High	db	7 dup(30h), 2 dup(34h), 2 dup(30h), 8 dup(70h), 2 dup(74h), 59 dup(70h)
+	helpMenuF2High	db	7 dup(70h), 2 dup(74h), 2 dup(70h), 8 dup(30h), 2 dup(34h), 2 dup(30h), 58 dup(70h)
+	textBlanks	db	80 dup(20h)
+	colorBlanks	db	80 dup(0)
+	aboutString	db	35 dup(20h), "Notepad--", 10, 13, 22 dup(20h), "The open source x86 ASM text editor!", 10, 13, 23 dup(20h), "Created by Barak Nehmad, 2015-2016", 10, 13, 27 dup(20h), "Press any key to return...$"
+	helpString	db	"========================================", 10, 13, "Keyboard shortcuts:", 10, 13, "Alt+S = Save current buffer to file", 10, 13, "Alt+O = Open a file", 10, 13, "Alt+N = Create new blank buffer", 10, 13, "Alt+X OR Alt+F4 = Exit", 10, 13, "F1 = Open help page (this one!)", 10, 13, "F2 = Open about page", 10, 13, "F10 = Enter menu navigation mode", 10, 13, "========================================", 10, 13, "Navigation tips:", 10, 13, "When in menu navigation mode, press the left and right arrow keys to navigate", 10, 13, "within the current selected sub-menu. In order to move to another sub-menu,", 10, 13, "press Alt+right/left arrow keys.", 10, 13, "In order to return to file editing, press ESC.$"
 	messagePos	dw	0
 	numOfReadBytes	dw	0
 	cursorX		db	0
@@ -79,7 +139,7 @@ ClearScreen endp
 ; Gets called whenever there's an error, displays error message.
 ; Uses AX to determine which error message to display.
 ErrorMessages	proc
-		push ax dx
+		push ax cx dx di es
 		pushf
 		cmp ax, 2
 		jz @@FileNotFound
@@ -107,13 +167,25 @@ ErrorMessages	proc
 	@@ShowError:
 		mov ah, 9
 		int 21h
-	@@EndProc:
 		lea dx, pressAnyKey
 		int 21h
 		mov ah, 7
 		int 21h
+	@@Reset:
+		call ClearScreen
+		mov ax, data
+		mov es, ax
+		lea di, fileName
+		inc di
+		xor al, al
+		cld
+		mov cx, 22
+		rep stosb
+		mov fileHandle, 0
+		call PrintMessage
+	@@Return:
 		popf
-		pop dx ax
+		pop es di dx cx ax
 		ret
 ErrorMessages	endp
 
@@ -184,7 +256,7 @@ CreateFile	endp
 
 ; Asks user for a filename and pushes answer to memory after cleaning it up.
 SetFileName	proc
-		push ax bx dx si
+		push ax bx cx dx si di
 		pushf
 		lea dx, askForName
 		mov ah, 9
@@ -210,16 +282,31 @@ SetFileName	proc
 	; at the end of the string.
 		mov si, cx
 		mov fileName[si], 0
+		push cx
 	@@PrintOnBar:
 		mov ax, data
 		mov es, ax
-		lea si, fileName
+		lea di, menuType
+		add di, 30
+		xor al, al
 		cld
-		lea di, menu
+		mov cx, 22
+		rep stosb
+		lea di, menuMenu
+		add di, 30
+		mov cx, 22
+		rep stosb
+		pop cx
+		lea si, fileName
+		lea di, menuType
+		add di, 30
+		rep movsb
+		lea si, fileName
+		lea di, menuMenu
 		add di, 30
 		rep movsb
 		popf
-		pop si dx bx ax
+		pop di si dx cx bx ax
 		ret
 SetFileName	endp
 
@@ -300,16 +387,37 @@ PrintMessage	proc
 		int 10h
 		mov cursorX, dl
 		mov cursorY, dh
-		push offset menu offset menuColor 0
+		push offset menuType offset menuColor 0
 		call PrintBar
-		mov ah, 2
-		mov dl, cursorX
-		mov dh, cursorY
-		int 10h
+		push offset textBlanks offset colorBlanks 1
+		call PrintBar
+		setCursorToCurrData
 		popf
 		pop ds dx bx ax
 		ret
 PrintMessage	endp
+
+DeleteMessageBuffer	proc
+		push ax cx di es
+		pushf
+		mov cx, messagePos
+		mov ax, mesDat
+		mov es, ax
+		lea di, message
+		mov al, 0
+		cld
+		rep stosb
+		mov messagePos, 0
+		call ClearScreen
+		push offset menuType offset menuColor 0
+		call PrintBar
+		push offset textBlanks offset colorBlanks 1
+		call PrintBar
+		call GetCursorPos
+		popf
+		pop es di cx ax
+		ret
+DeleteMessageBuffer	endp
 
 ; TODO: Should list all files with txt, bat, py and asm extensions.
 ListFiles	proc
@@ -399,7 +507,7 @@ MainInput	proc
 		mov message[si], al
 		setDataDS
 	@@GetKey:
-		call SetCursorPosData
+		call GetCursorPos
 		mov ah, 1
 		int 21h
 		cmp al, 13
@@ -486,7 +594,7 @@ Backspace	proc
 Backspace	endp
 
 ; Queries cursor position and returns data to memory.
-SetCursorPosData	proc
+GetCursorPos	proc
 		push ax bx dx
 		pushf
 		mov ah, 3
@@ -497,95 +605,91 @@ SetCursorPosData	proc
 		popf
 		pop dx bx ax
 		ret
-SetCursorPosData	endp
+GetCursorPos	endp
 
-; Uses data from previous int 21h;7 in order to determine a keyboard shortcut.
+; Uses data from previous int 21h|7 in order to determine a keyboard shortcut.
 RecognizeDoubleKey	proc
 		push ax bx dx
 		pushf
 		mov ah, 7
 		int 21h
-		cmp al, 21h ; alt+f
+		cmp al, 1Fh ; alt+s
 		jz @@SaveFile
-		cmp al, 44h ; F10
-		jz @@MenuMode
+		cmp al, 18h ; alt+o
+		jz @@OpenFile
+		cmp al, 0A3h ;alt+del
+		jz @@DeleteBuffer
+		cmp al, 3Bh ; F1
+		jz @@Help
+		cmp al, 3Ch ; F2
+		jz @@About
+		cmp al, 21h ; alt+f
+		jz @@FileMenu
 		cmp al, 12h ; alt+e
 		jz @@EditMenu
 		cmp al, 23h ; alt+h
 		jz @@HelpMenu
-		cmp al, 18h ; alt+o
-		jz @@OpenFile
+		cmp al, 44h ; F10
+		jz @@MenuMode
 		cmp al, 2Dh ; alt+x
 		jz @@Exit
-		; cmp al, 50h ; down
-		; jz @@MoveDown
-		; cmp al, 4Bh ; left
-		; jz @@MoveLeft
-		; cmp al, 4Dh ; right
-		; jz @@MoveRight
-		; cmp al, 48h ; up
-		; jz @@MoveUp
-		mov ah, 2
-		xor bh, bh
-		mov dl, cursorX
-		mov dh, cursorY
-		int 10h
-		popf
-		pop dx bx ax
-		ret
+		cmp al, 6Bh ; alt+F4
+		jz @@Exit
+		setCursorToCurrData
+		jmp @@Return
 	@@SaveFile:
-		push offset menu offset fileHighC 0
-		call PrintBar
-		push offset fileMenu offset fileMenuC 1
-		call PrintBar
-		mov ah, 2
-		xor bh, bh
-		mov dl, cursorX
-		mov dh, cursorY
-		int 10h
-		call SetFileName
-		push offset fileName
-		call CreateFile
-		call OpenFile
-		call WriteToFile
-		call ClearScreen
-		call PrintMessage
-		popf
-		pop dx bx ax
-		ret
+		completeSaveFile
+		jmp @@Return
 	@@OpenFile:
-		push offset menu offset fileHighC 0
+		completeOpenFile
+		jmp @@Return
+	@@DeleteBuffer:
+		call DeleteMessageBuffer
+		jmp @@Return
+	@@Help:
+		push offset helpString 0
+		call PrintSecondPage
+		jmp @@Return
+	@@About:
+		push offset aboutString 7
+		call PrintSecondPage
+		jmp @@Return
+	@@FileMenu:
+		push 0
+		call MenuMode
+		push offset menuType offset menuColor 0
 		call PrintBar
-		push offset fileMenu offset fileMenuC 1
+		push offset textBlanks offset colorBlanks 1
 		call PrintBar
-		mov ah, 2
-		xor bh, bh
-		mov dl, cursorX
-		mov dh, cursorY
-		int 10h
-		call SetFileName
-		call OpenFile
-		call ReadFile
-		call ClearScreen
-		call PrintMessage
-		popf
-		pop dx bx ax
-		ret
+		setCursorToCurrData
+		jmp @@Return
 	@@EditMenu:
-		mov ah, 7
-		int 21h
-		popf
-		pop dx bx ax
-		ret
+		push 1
+		call MenuMode
+		push offset menuType offset menuColor 0
+		call PrintBar
+		push offset textBlanks offset colorBlanks 1
+		call PrintBar
+		setCursorToCurrData
+		jmp @@Return
 	@@HelpMenu:
-		mov ah, 7
-		int 21h
-		popf
-		pop dx bx ax
-		ret
+		push 2
+		call MenuMode
+		push offset menuType offset menuColor 0
+		call PrintBar
+		push offset textBlanks offset colorBlanks 1
+		call PrintBar
+		setCursorToCurrData
+		jmp @@Return
 	@@MenuMode:
-		mov ah, 7
-		int 21h
+		push 0
+		call MenuMode
+		push offset menuType offset menuColor 0
+		call PrintBar
+		push offset textBlanks offset colorBlanks 1
+		call PrintBar
+		setCursorToCurrData
+	@@Return:
 		popf
 		pop dx bx ax
 		ret
@@ -594,6 +698,198 @@ RecognizeDoubleKey	proc
 		mov ah, 4Ch
 		int 21h
 RecognizeDoubleKey	endp
+
+DefaultMenu	equ	[bp+4]
+MenuMode	proc
+		push bp
+		mov bp, sp
+		push ax bx
+		pushf
+		mov bh, DefaultMenu	; bh is selected sub-menu
+		mov bl, 0			; bl is selected entry in sub-menu
+	@@CheckBH:
+		cmp bh, 1
+		jc @@FileMenuCheck	; bh is 0
+		ja @@HelpMenuCheck	; bh is 2
+		@@EditMenuCheck:
+			push offset menuMenu offset mainEditHighC 0
+			call PrintBar
+			push offset editMenu offset editMenuDeleteHigh 1
+			call PrintBar
+			jmp @@StartInput
+		@@FileMenuCheck:
+			push offset menuMenu offset mainFileHighC 0
+			call PrintBar
+			cmp bl, 1
+			jc @@FileMenuBLIs0
+			ja @@FileMenuBLIs2
+			push offset fileMenu offset fileMenuOpenHigh 1
+			call PrintBar
+			jmp @@StartInput
+			@@FileMenuBLIs0:
+				push offset fileMenu offset fileMenuNewHigh 1
+				call PrintBar
+				jmp @@StartInput
+			@@FileMenuBLIs2:
+				push offset fileMenu offset fileMenuSaveHigh 1
+				call PrintBar
+				jmp @@StartInput
+		@@HelpMenuCheck:
+			push offset menuMenu offset mainHelpHighC 0
+			call PrintBar
+			cmp bl, 0
+			jnz @@HelpMenuBLIs1
+			push offset helpMenu offset helpMenuF1High 1
+			call PrintBar
+			jmp @@StartInput
+		@@HelpMenuBLIs1:
+			push offset helpMenu offset helpMenuF2High 1
+			call PrintBar
+	@@StartInput:
+		mov ah, 7
+		int 21h
+		cmp al, 13	; enter
+		jz @@Select
+		cmp al, 1Bh	; escape
+		jz @@Return
+		cmp al, 0
+		jnz @@StartInput
+		int 21h
+		cmp al, 4Dh ; right
+		jz @@MoveInSubRight
+		cmp al, 4Bh ; left
+		jz @@MoveInSubLeft
+		cmp al, 9Dh ; alt+right
+		jz @@MoveSubRight
+		cmp al, 9Bh ; alt+left
+		jz @@MoveSubLeft
+		jmp @@StartInput
+		@@MoveInSubRight:
+			cmp bh, 1
+			jc @@MoveInSubFileRight
+			ja @@MoveInSubHelpRight
+			@@MoveInSubEditRight:
+				jmp @@EditMenuCheck
+			@@MoveInSubFileRight:
+				cmp bl, 2
+				jz @@MaxBL
+				inc bl
+				jmp @@FileMenuCheck
+			@@MoveInSubHelpRight:
+				cmp bl, 1
+				jz @@MaxBL
+				inc bl
+				jmp @@HelpMenuBLIs1
+			@@MaxBL:
+				xor bl, bl
+				jmp @@CheckBH
+		@@MoveInSubLeft:
+			cmp bh, 1
+			jc @@MoveInSubFileLeft
+			ja @@MoveInSubHelpLeft
+			@@MoveInSubEditLeft:
+				jmp @@EditMenuCheck
+			@@MoveInSubFileLeft:
+				cmp bl, 0
+				jz @@MinBL2
+				dec bl
+				jmp @@FileMenuCheck
+			@@MoveInSubHelpLeft:
+				cmp bl, 0
+				jz @@MinBL1
+				dec bl
+				jmp @@HelpMenuCheck
+			@@MinBL2:
+				mov bl, 2
+				jmp @@CheckBH
+			@@MinBL1:
+				inc bl
+				jmp @@CheckBH
+		@@MoveSubRight:
+			cmp bh, 1
+			ja @@MaxBH
+			inc bh
+			jmp @@CheckBH
+			@@MaxBH:
+				xor bh, bh
+				jmp @@CheckBH
+		@@MoveSubLeft:
+			cmp bh, 1
+			jc @@MinBH
+			dec bh
+			jmp @@CheckBH
+			@@MinBH:
+				mov bh, 2
+				jmp @@CheckBH
+	@@Select:
+		cmp bh, 1
+		jc @@SelectInFile
+		ja @@SelectInHelp
+		@@SelectInEdit:
+			@@InEditSelectDelete:
+				call DeleteMessageBuffer
+				jmp @@Return
+		@@SelectInFile:
+			cmp bl, 1
+			jc @@InFileSelectNew
+			ja @@InFileSelectSave
+			@@InFileSelectOpen:
+				completeOpenFile
+				jmp @@Return
+			@@InFileSelectNew:
+				completeNewFile
+				jmp @@Return
+			@@InFileSelectSave:
+				completeSaveFile
+				jmp @@Return
+		@@SelectInHelp:
+			cmp bl, 1
+			jz @@InHelpSelectAbout
+			@@InHelpSelectHelp:
+				push offset helpString 0
+				call PrintSecondPage
+				jmp @@Return
+			@@InHelpSelectAbout:
+				push offset aboutString 7
+				call PrintSecondPage
+				jmp @@Return
+	@@Return:
+		popf
+		pop bx ax
+		pop bp
+		ret 2
+MenuMode	endp
+
+StringToPrint	equ	[bp+6]
+RowToPrint		equ	[bp+4]
+PrintSecondPage	proc
+		push bp
+		mov bp, sp
+		push ax cx dx si
+		pushf
+		mov ah, 5
+		mov al, 1
+		int 10h
+		call ClearScreen
+		mov ah, 2
+		mov bh, 1
+		mov dh, RowToPrint
+		xor dl, dl
+		int 10h
+		mov ah, 9
+		mov dx, StringToPrint
+		int 21h
+		mov ah, 7
+		int 21h
+		mov ah, 5
+		xor al, al
+		int 10h
+		setCursorToCurrData
+		popf
+		pop si dx cx ax
+		pop bp
+		ret 4
+PrintSecondPage	endp
 
 ; Upon request of exit, asks user whether to save the file or not.
 CheckSave	proc
@@ -636,7 +932,7 @@ CheckSave	endp
 	Start:
 		setDataDS
 		call ClearScreen
-		push offset menu offset menuColor 0
+		push offset menuType offset menuColor 0
 		call PrintBar
 		call MainInput
 		call CloseFile
