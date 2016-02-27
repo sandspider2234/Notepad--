@@ -378,7 +378,17 @@ PrintMessage	proc
 		mov dh, 2
 		xor dl, dl
 		int 10h
+		setDataDS
+		push si bx
+		mov si, numOfReadBytes
+		mov bx, messagePos
 		setMesDS
+		cmp si, bx
+		jz @@PosEquRead
+		mov message[si], 0
+		mov message[bx], '$'
+	@@PosEquRead:
+		pop bx si
 		mov ah, 9
 		lea dx, message
 		int 21h
@@ -534,6 +544,8 @@ Backspace	proc
 		setDataDS
 		cmp cursorX, 0
 		ja @@DelLetter
+		cmp cursorY, 2
+		jz @@ReprintBuffer
 		dec si
 		setMesDS
 		cmp message[si], 10
@@ -546,6 +558,9 @@ Backspace	proc
 		xor bh, bh
 		mov ah, 2
 		int 10h
+		jmp @@DelLetter
+	@@ReprintBuffer:
+		call PrintMessage
 		jmp @@DelLetter
 	@@EnterFound:
 		dec si
