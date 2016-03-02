@@ -297,10 +297,12 @@ SetFileName	proc
 		mov cx, 22
 		rep stosb
 		pop cx
+		push cx
 		lea si, fileName
 		lea di, menuType
 		add di, 30
 		rep movsb
+		pop cx
 		lea si, fileName
 		lea di, menuMenu
 		add di, 30
