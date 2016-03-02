@@ -501,9 +501,9 @@ MainInput	proc
 		mov si, messagePos
 		inc messagePos
 		setMesDS
-		mov message[si], 10
-		inc si
 		mov message[si], 13
+		inc si
+		mov message[si], 10
 		setDataDS
 		inc messagePos
 		jmp @@GetKey
@@ -548,7 +548,7 @@ Backspace	proc
 		jz @@ReprintBuffer
 		dec si
 		setMesDS
-		cmp message[si], 10
+		cmp message[si], 13
 		jz @@EnterFound
 	@@JmpToEndLine:
 		setDataDS
@@ -570,7 +570,7 @@ Backspace	proc
 		lea di, message
 		add di, si
 		std
-		mov al, 13
+		mov al, 10
 		mov cx, si
 		repnz scasb
 		cmp di, 0
@@ -582,13 +582,13 @@ Backspace	proc
 	@@Division:
 		sub si, di
 		mov ax, si
-		mov dl, 80
-		div dl
+		xor dx, dx
+		mov bx, 80
+		div bx
 		xor bh, bh
 		setDataDS
 		mov dh, cursorY
 		dec dh
-		mov dl, ah
 		mov ah, 2
 		int 10h
 		dec messagePos
