@@ -1,6 +1,8 @@
 locals
 jumps
 
+; Sets cursor position in the default video page to the
+; current data in the memory.
 setCursorToCurrData	macro
 	mov ah, 2
 	xor bh, bh
@@ -9,17 +11,23 @@ setCursorToCurrData	macro
 	int 10h
 endm
 
+; Runs entire process of creating and opening a new (empty) file.
 completeNewFile	macro
 	call CheckSave
 	call SetFileName
 	push offset fileName
 	call CreateFile
 	call OpenFile
-	call WriteToFile
+	call DeleteMessageBuffer
 	call ClearScreen
-	call PrintMessage
+	push offset menuType offset menuColor 0
+	call PrintBar
+	mov cursorX, 0
+	mov cursorY, 2
+	setCursorToCurrData
 endm
 
+; Runs entire process of saving to a file.
 completeSaveFile	macro
 	push offset menuMenu offset mainFileHighC 0
 	call PrintBar
@@ -35,7 +43,7 @@ completeSaveFile	macro
 	call PrintMessage
 endm
 
-completeOpenFile	macro
+completeOpenReadFile	macro
 	push offset menuType offset mainFileHighC 0
 	call PrintBar
 	push offset fileMenu offset fileMenuOpenHigh 1
@@ -49,6 +57,7 @@ completeOpenFile	macro
 endm
 
 ; Macros for switching DSEGs.
+; Switch to general varibles and arrays segment.
 setDataDS	macro
 	push ax
 	mov ax, data
@@ -57,6 +66,7 @@ setDataDS	macro
 	pop ax
 endm
 
+; Switch to message buffer segment.
 setMesDS	macro
 	push ax
 	mov ax, mesDat
@@ -337,6 +347,7 @@ OpenFile	endp
 ReadFile	proc
 		push ax bx cx dx si ds
 		pushf
+		call DeleteMessageBuffer
 		mov bx, fileHandle
 		mov cx, 0FFFFh
 		setMesDS
@@ -431,12 +442,6 @@ DeleteMessageBuffer	proc
 		ret
 DeleteMessageBuffer	endp
 
-; TODO: Should list all files with txt, bat, py and asm extensions.
-ListFiles	proc
-		lea si, txtWild
-		ret
-ListFiles	endp
-
 ; Writes to file using handle and message buffer.
 WriteToFile	proc
 		push ax bx cx dx ds
@@ -497,38 +502,76 @@ DeleteFile	endp
 
 ; Main input loop. Gets input from user and writes it to message buffer.
 MainInput	proc
-		setDataDS
 		jmp @@GetKey
 	@@Enter:
 		mov si, messagePos
-		inc messagePos
+		add messagePos, 2
 		setMesDS
 		mov message[si], 13
 		inc si
 		mov message[si], 10
-		setDataDS
-		inc messagePos
 		jmp @@GetKey
 	@@Backspace:
 		call Backspace
 		jmp @@GetKey
 	@@Write:
+		setDataDS
+		mov si, messagePos
+		inc messagePos
+		setMesDS
+		mov message[si], al
+	@@GetKey:
+		setDataDS
+		call GetCursorPos
+		mov ah, 1
+		int 21h
+		cmp al, 8
+		jz @@Backspace
+		cmp cursorY, 24
+		jz @@TestReprintBars
+		cmp al, 13
+		jz @@Enter
+		cmp al, 0
+		jnz @@Write
+		call RecognizeDoubleKey
+		jmp @@GetKey
+	@@TestReprintBars:
+		cmp al, 13
+		jz @@BarsEnter
+		cmp al, 0
+		jnz @@BarsWrite
+		call RecognizeDoubleKey
+		jmp @@GetKey
+	@@BarsEnter:
+		mov si, messagePos
+		add messagePos, 2
+		setMesDS
+		mov message[si], 13
+		inc si
+		mov message[si], 10
+		jmp @@ReprintBars
+	@@BarsWrite:
+		setDataDS
 		mov si, messagePos
 		inc messagePos
 		setMesDS
 		mov message[si], al
 		setDataDS
-	@@GetKey:
-		call GetCursorPos
-		mov ah, 1
-		int 21h
-		cmp al, 13
-		jz @@Enter
-		cmp al, 8
-		jz @@Backspace
-		cmp al, 0
-		jnz @@Write
-		call RecognizeDoubleKey
+		cmp cursorX, 79
+		jnz @@ReturnWithoutReprint
+	@@ReprintBars:
+		setDataDS
+		push offset menuType offset menuColor 0
+		call PrintBar
+		push offset textBlanks offset colorBlanks 1
+		call PrintBar
+		xor dl, dl
+		mov dh, 24
+		xor bh, bh
+		mov ah, 2
+		int 10h
+		jmp @@GetKey
+	@@ReturnWithoutReprint:
 		jmp @@GetKey
 		ret
 MainInput	endp
@@ -547,12 +590,11 @@ Backspace	proc
 		cmp cursorX, 0
 		ja @@DelLetter
 		cmp cursorY, 2
-		jz @@ReprintBuffer
+		jz @@ReprintEnterCheck
 		dec si
 		setMesDS
 		cmp message[si], 13
 		jz @@EnterFound
-	@@JmpToEndLine:
 		setDataDS
 		mov dl, 79
 		mov dh, cursorY
@@ -561,49 +603,57 @@ Backspace	proc
 		mov ah, 2
 		int 10h
 		jmp @@DelLetter
-	@@ReprintBuffer:
-		call PrintMessage
-		jmp @@DelLetter
-	@@EnterFound:
-		dec si
-		mov ax, mesDat
-		mov es, ax
-		assume es:mesDat
-		lea di, message
-		add di, si
-		std
-		mov al, 10
-		mov cx, si
-		repnz scasb
-		cmp di, 0
-		jz @@DiIsStartOfDoc
-		inc di
-		jmp @@Division
-	@@DiIsStartOfDoc: 
-		inc si
-	@@Division:
-		sub si, di
-		mov ax, si
-		xor dx, dx
-		mov bx, 80
-		div bx
-		xor bh, bh
-		setDataDS
-		mov dh, cursorY
-		dec dh
-		mov ah, 2
-		int 10h
-		dec messagePos
-		mov si, messagePos
-		setMesDS
-		mov message[si], 0
-		setDataDS
-	@@DelLetter:
-		mov ah, 0Ah
-		xor al, al
-		xor bh, bh
-		mov cx, 1
-		int 10h
+		@@ReprintEnterCheck:
+			dec si
+			setMesDS
+			cmp message[si], 13
+			jnz @@CallPrint
+			mov message[si], 0
+			setDataDS
+			dec messagePos
+			@@CallPrint:
+				call PrintMessage
+				jmp @@DelLetter
+		@@EnterFound:
+			dec si
+			mov ax, mesDat
+			mov es, ax
+			assume es:mesDat
+			lea di, message
+			add di, si
+			std
+			mov al, 10
+			mov cx, si
+			repnz scasb
+			cmp di, 0
+			jz @@DiIsStartOfDoc
+			inc di
+			jmp @@Division
+			@@DiIsStartOfDoc: 
+				inc si
+			@@Division:
+				sub si, di
+				mov ax, si
+				xor dx, dx
+				mov bx, 80
+				div bx
+				xor bh, bh
+				setDataDS
+				mov dh, cursorY
+				dec dh
+				mov ah, 2
+				int 10h
+				dec messagePos
+				mov si, messagePos
+				setMesDS
+				mov message[si], 0
+				setDataDS
+		@@DelLetter:
+			mov ah, 0Ah
+			xor al, al
+			xor bh, bh
+			mov cx, 1
+			int 10h
 	@@EndProc:
 		popf
 		pop es ds di si dx cx bx ax
@@ -614,6 +664,7 @@ Backspace	endp
 GetCursorPos	proc
 		push ax bx dx
 		pushf
+		setDataDS
 		mov ah, 3
 		xor bh, bh
 		int 10h
@@ -630,6 +681,8 @@ RecognizeDoubleKey	proc
 		pushf
 		mov ah, 7
 		int 21h
+		cmp al, 31h	; alt+n
+		jz @@NewFile
 		cmp al, 1Fh ; alt+s
 		jz @@SaveFile
 		cmp al, 18h ; alt+o
@@ -654,11 +707,14 @@ RecognizeDoubleKey	proc
 		jz @@Exit
 		setCursorToCurrData
 		jmp @@Return
+	@@NewFile:
+		completeNewFile
+		jmp @@Return
 	@@SaveFile:
 		completeSaveFile
 		jmp @@Return
 	@@OpenFile:
-		completeOpenFile
+		completeOpenReadFile
 		jmp @@Return
 	@@DeleteBuffer:
 		call DeleteMessageBuffer
@@ -851,7 +907,7 @@ MenuMode	proc
 			jc @@InFileSelectNew
 			ja @@InFileSelectSave
 			@@InFileSelectOpen:
-				completeOpenFile
+				completeOpenReadFile
 				jmp @@Return
 			@@InFileSelectNew:
 				completeNewFile
