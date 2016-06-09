@@ -57,22 +57,11 @@ completeOpenReadFile	macro
 	call PrintMessage
 endm
 
-; Macros for switching DSEGs.
-; Switch to general varibles and arrays segment.
-setDataDS	macro
+setDataSegment	macro	dseg
 	push ax
-	mov ax, data
+	mov ax, dseg
 	mov ds, ax
-	assume ds:data
-	pop ax
-endm
-
-; Switch to message buffer segment.
-setMesDS	macro
-	push ax
-	mov ax, mesDat
-	mov ds, ax
-	assume ds:mesDat
+	assume ds:dseg
 	pop ax
 endm
 
@@ -327,7 +316,7 @@ SetFileName	endp
 OpenFile	proc
 		push ax dx ds
 		pushf
-		setDataDS
+		setDataSegement data
 		lea dx, fileName
 		mov ah, 3Dh
 		mov al, 2
@@ -351,17 +340,17 @@ ReadFile	proc
 		call DeleteMessageBuffer
 		mov bx, fileHandle
 		mov cx, 0FFFFh
-		setMesDS
+		setDataSegement mesDat
 		lea dx, message
 		mov ah, 3Fh
 		int 21h
-		setDataDS
+		setDataSegement data
 		mov numOfReadBytes, ax
 		mov messagePos, ax
 		mov si, ax
-		setMesDS
+		setDataSegement mesDat
 		mov message[si], '$' ; Adds a terminate to the end of the string.
-		setDataDS
+		setDataSegement data
 		popf
 		pop ds si dx cx bx ax
 		ret
@@ -392,11 +381,11 @@ PrintMessage	proc
 		mov dh, 2
 		xor dl, dl
 		int 10h
-		setDataDS
+		setDataSegement data
 		push si bx
 		mov si, numOfReadBytes
 		mov bx, messagePos
-		setMesDS
+		setDataSegement mesDat
 		cmp si, bx
 		jz @@PosEquRead
 		mov message[si], 0
@@ -406,7 +395,7 @@ PrintMessage	proc
 		mov ah, 9
 		lea dx, message
 		int 21h
-		setDataDS
+		setDataSegement data
 		mov ah, 3
 		int 10h
 		mov cursorX, dl
@@ -447,10 +436,10 @@ DeleteMessageBuffer	endp
 WriteToFile	proc
 		push ax bx cx dx ds
 		pushf
-		setDataDS
+		setDataSegement data
 		mov bx, fileHandle
 		mov cx, messagePos
-		setMesDS
+		setDataSegement mesDat
 		lea dx, message
 		mov ah, 40h
 		int 21h
@@ -471,7 +460,7 @@ WriteToFile	endp
 CloseFile	proc
 		push ax bx ds
 		pushf
-		setDataDS
+		setDataSegement data
 		mov bx, fileHandle
 		mov ah, 3Eh
 		int 21h
@@ -507,7 +496,7 @@ MainInput	proc
 	@@Enter:
 		mov si, messagePos
 		add messagePos, 2
-		setMesDS
+		setDataSegement mesDat
 		mov message[si], 13
 		inc si
 		mov message[si], 10
@@ -516,13 +505,13 @@ MainInput	proc
 		call Backspace
 		jmp @@GetKey
 	@@Write:
-		setDataDS
+		setDataSegement data
 		mov si, messagePos
 		inc messagePos
-		setMesDS
+		setDataSegement mesDat
 		mov message[si], al
 	@@GetKey:
-		setDataDS
+		setDataSegement data
 		call GetCursorPos
 		mov ah, 1
 		int 21h
@@ -546,22 +535,22 @@ MainInput	proc
 	@@BarsEnter:
 		mov si, messagePos
 		add messagePos, 2
-		setMesDS
+		setDataSegement mesDat
 		mov message[si], 13
 		inc si
 		mov message[si], 10
 		jmp @@ReprintBars
 	@@BarsWrite:
-		setDataDS
+		setDataSegement data
 		mov si, messagePos
 		inc messagePos
-		setMesDS
+		setDataSegement mesDat
 		mov message[si], al
-		setDataDS
+		setDataSegement data
 		cmp cursorX, 79
 		jnz @@ReturnWithoutReprint
 	@@ReprintBars:
-		setDataDS
+		setDataSegement data
 		push offset menuType offset menuColor 0
 		call PrintBar
 		push offset textBlanks offset colorBlanks 1
@@ -585,18 +574,18 @@ Backspace	proc
 		jz @@EndProc
 		dec messagePos
 		mov si, messagePos
-		setMesDS
+		setDataSegement mesDat
 		mov message[si], 0
-		setDataDS
+		setDataSegement data
 		cmp cursorX, 0
 		ja @@DelLetter
 		cmp cursorY, 2
 		jz @@ReprintEnterCheck
 		dec si
-		setMesDS
+		setDataSegement mesDat
 		cmp message[si], 13
 		jz @@EnterFound
-		setDataDS
+		setDataSegement data
 		mov dl, 79
 		mov dh, cursorY
 		dec dh
@@ -606,11 +595,11 @@ Backspace	proc
 		jmp @@DelLetter
 		@@ReprintEnterCheck:
 			dec si
-			setMesDS
+			setDataSegement mesDat
 			cmp message[si], 13
 			jnz @@CallPrint
 			mov message[si], 0
-			setDataDS
+			setDataSegement data
 			dec messagePos
 			@@CallPrint:
 				call PrintMessage
@@ -639,16 +628,16 @@ Backspace	proc
 				mov bx, 80
 				div bx
 				xor bh, bh
-				setDataDS
+				setDataSegement data
 				mov dh, cursorY
 				dec dh
 				mov ah, 2
 				int 10h
 				dec messagePos
 				mov si, messagePos
-				setMesDS
+				setDataSegement mesDat
 				mov message[si], 0
-				setDataDS
+				setDataSegement data
 		@@DelLetter:
 			mov ah, 0Ah
 			xor al, al
@@ -665,7 +654,7 @@ Backspace	endp
 GetCursorPos	proc
 		push ax bx dx
 		pushf
-		setDataDS
+		setDataSegement data
 		mov ah, 3
 		xor bh, bh
 		int 10h
@@ -1005,7 +994,7 @@ CheckSave	proc
 CheckSave	endp
 
 	Start:
-		setDataDS
+		setDataSegement data
 		call ClearScreen
 		push offset menuType offset menuColor 0
 		call PrintBar
