@@ -43,6 +43,7 @@ completeSaveFile	macro
 	call PrintMessage
 endm
 
+; Runs entire process of opening and reading an existing file.
 completeOpenReadFile	macro
 	push offset menuType offset mainFileHighC 0
 	call PrintBar
@@ -122,7 +123,7 @@ mesDat	segment
 mesDat	ends
 
 stac	segment stack
-		dw 300h dup(?)
+		dw 100h dup(?)
 stac	ends
 
 code	segment
@@ -768,6 +769,7 @@ RecognizeDoubleKey	proc
 		ret
 	@@Exit:
 		call CheckSave
+		call CloseFile
 		mov ah, 4Ch
 		int 21h
 RecognizeDoubleKey	endp
